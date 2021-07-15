@@ -5,7 +5,7 @@ This script is design for the auto whitelisting Quic Cloud IPs for ConfigServer 
 |  Opt  |    Options    | Description|
 | :---: | ---------  | ---  |
 | `-U` |`--update`|   Add/Update quic.cloud/ips to both csf.allow and csf.ignore list|
-| `-R` |`--restor`|   Restore csf.allow and csf.ignore to origin|
+| `-R` |`--restore`|   Restore csf.allow and csf.ignore to origin|
 | `-H` |`--help`  |   To display help messages|
 
 ## Usage
