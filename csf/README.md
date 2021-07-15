@@ -1,12 +1,12 @@
 # csf-auto-update
-This script is design for the auto whitelisting Quic Cloud IPs for ConfigServer Security & Firewall.
+This script is designed to facilitate automatic allowlisting of QUIC.cloud IPs in ConfigServer Security & Firewall (CSF).
 
 ## Options
 |  Opt  |    Options    | Description|
 | :---: | ---------  | ---  |
 | `-U` |`--update`|   Add/Update quic.cloud/ips to both csf.allow and csf.ignore list|
-| `-R` |`--restor`|   Restore csf.allow and csf.ignore to origin|
-| `-H` |`--help`  |   To display help messages|
+| `-R` |`--restore`|   Restore csf.allow and csf.ignore to origin|
+| `-H` |`--help`  |   Display help messages|
 
 ## Usage
 1. Download and give permission to the script
@@ -17,8 +17,8 @@ This script is design for the auto whitelisting Quic Cloud IPs for ConfigServer 
     chmod +x /opt/csf-auto-update.sh
     ```
 
-2. Add following example rule to the cronjob \
-Edit cronjob with `crontab -e` command, and insert following rule which will run every day at 00:00
+2. Add a rule to the cronjob \
+Edit cronjob with the `crontab -e` command, and insert a rule similar to the following. This example will run every day at 00:00:
 
     ```
     0 0 * * * /opt/csf-auto-update.sh
