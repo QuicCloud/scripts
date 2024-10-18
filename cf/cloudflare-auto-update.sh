@@ -34,7 +34,7 @@ fi
 # Validate Cloudflare credentials
 validate_credentials() {
   if [ -z "$CF_EMAIL" ] || [ -z "$CF_API_KEY" ] || [ -z "$CF_ZONE_ID" ]; then
-    echo "Authentication error: One or more credential inputs are empty. Please check your input details and try again."
+    echo -e "Authentication error: One or more credential inputs are empty. Please check your input details and try again.\n"
     exit 1
   fi
 
@@ -46,7 +46,7 @@ validate_credentials() {
 
   # Check if the response indicates an authentication error
   if echo "$AUTH_TEST_RESPONSE" | jq -e '.success == false' > /dev/null; then
-    echo "Authentication error: Invalid Cloudflare credentials. Please check your input details and try again."
+    echo -e "Authentication error: Invalid Cloudflare credentials. Please check your input details and try again.\n"
     exit 1
   fi
 }
