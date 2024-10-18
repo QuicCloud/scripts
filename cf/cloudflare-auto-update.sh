@@ -31,6 +31,17 @@ if [ "$HTTP_STATUS" -ne 200 ]; then
   exit 1
 fi
 
+# Validate Cloudflare credentials
+validate_credentials() {
+  if [ -z "$CF_EMAIL" ] || [ -z "$CF_API_KEY" ] || [ -z "$CF_ZONE_ID" ]; then
+    echo "Authentication error, check your input details and try again."
+    exit 1
+  fi
+}
+
+# Call the validation function
+validate_credentials
+
 # Get QUIC.cloud IPs
 QUIC_CLOUD_IPS=$(curl -s "$QUIC_CLOUD_IPS_URL")
 
