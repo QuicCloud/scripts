@@ -21,5 +21,5 @@ This script is designed to facilitate automatic allowlisting of QUIC.cloud IPs i
 Edit cronjob with the `crontab -e` command, and insert a rule similar to the following. This example will run every day at 00:00:
 
     ```
-    0 0 * * * /opt/csf-auto-update.sh
+    0 0 * * * /opt/csf-auto-update.sh -u
     ```
