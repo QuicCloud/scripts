@@ -24,7 +24,7 @@ This script is designed to automate the process of whitelisting and managing IP 
 2. Make the script executable:
    ```bash
    chmod +x /opt/cloudflare-auto-update.sh
-3. Set up your Cloudflare credentials in the script: Edit the script and provide your Cloudflare email, API key, and zone ID:
+3. Set up your Cloudflare credentials in the script: Edit the script and provide your Cloudflare email, API key, and zone ID (see [this tutorial](https://developers.cloudflare.com/fundamentals/setup/find-account-and-zone-ids/)  to find the ZoneID):
    ```bash
    CF_EMAIL="your_email@example.com"
    CF_API_KEY="your_api_key"
