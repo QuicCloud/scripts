@@ -29,6 +29,10 @@ This script is designed to automate the process of whitelisting and managing IP 
    CF_EMAIL="your_email@example.com"
    CF_API_KEY="your_api_key"
    CF_ZONE_ID="your_zone_id"
+To find those credentials:
+* CF_EMAIL: simply your email for your account. Can be found on the top left corner of the Cloudflare website;
+* CF_API_KEY: Go to your profile (top right corner icon) -> My Profile -> API Tokens -> Global API Key => View ;
+* CF_ZONE_ID: Go to your home dashboard -> click on your website domain -> the Zine ID is at the bottom right side of the screen (see [this tutorial](https://developers.cloudflare.com/fundamentals/setup/find-account-and-zone-ids/)).
 
 ## Usage
 
