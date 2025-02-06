@@ -1,13 +1,13 @@
 # Cloudflare Auto Update Script
 
-This script is designed to automate the process of whitelisting and managing IP addresses for QUIC.cloud services on Cloudflare. It allows you to easily add or remove IP addresses based on the latest data from QUIC.cloud, ensuring your firewall rules are up to date.
+This script is designed to automate the process of allowlisting and managing IP addresses for QUIC.cloud services on Cloudflare. It allows you to easily add or remove IP addresses based on the latest data from QUIC.cloud, ensuring your firewall rules are up to date.
 
 ## Features
 
 - Automatically fetches the latest QUIC.cloud IP addresses.
-- Whitelists new IP addresses in your Cloudflare account.
+- Allowlists new IP addresses in your Cloudflare account.
 - Deletes QUIC.cloud IP addresses on your request.
-- Progress indicators for both whitelisting and deletion processes.
+- Progress indicators for both allowlisting and deletion processes.
 - Simple to set up and run with cron jobs.
 
 ## Requirements
@@ -39,7 +39,7 @@ To find those credentials:
 You can run the script manually or set it up as a cron job for automated execution.
 
 1. **Manual Execution**
-   - To whitelist IPs:
+   - To allowlist IPs:
      ```bash
      /opt/cloudflare-auto-update.sh
    - To delete QUIC.cloud IPs:
