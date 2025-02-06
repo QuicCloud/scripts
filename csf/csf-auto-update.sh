@@ -147,7 +147,7 @@ then
             check_environment "-u"
             update_csf_setting
             ;;
-        -[rR] | -restore | --restor)
+        -[rR] | -restore | --restore)
             check_environment "-r"
             resotre_csf_setting
             ;;
