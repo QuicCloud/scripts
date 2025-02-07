@@ -19,7 +19,7 @@ This script automates the process of adding and removing QUIC.cloud IPs to/from 
 
 1. Download the script using the following command:
    ```bash
-   wget github
+   wget https://raw.githubusercontent.com/QuicCloud/scripts/main/plesk/plesk_fail2ban.sh
 2. Make the script executable:
    ```bash
    chmod +x plesk_fail2ban.sh
