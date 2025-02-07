@@ -57,20 +57,20 @@ validate_credentials
 # Get QUIC.cloud IPs
 QUIC_CLOUD_IPS=$(curl -s "$QUIC_CLOUD_IPS_URL")
 
-# Function to get all whitelisted IPs (with pagination support)
-get_whitelisted_ips() {
+# Function to get all allowlisted IPs (with pagination support)
+get_allowlisted_ips() {
   local page=1
   local all_ips=()
   
   while true; do
-    # Fetch the whitelisted IPs from Cloudflare, with pagination support
+    # Fetch the allowlisted IPs from Cloudflare, with pagination support
     response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?page=$page&per_page=50" \
       -H "X-Auth-Email: $CF_EMAIL" \
       -H "X-Auth-Key: $CF_API_KEY" \
       -H "Content-Type: application/json")
 
     # Parse the IPs from the response
-    ips=$(echo "$response" | jq -r '.result[] | select(.mode == "whitelist") | .configuration.value')
+    ips=$(echo "$response" | jq -r '.result[] | select(.mode == "allowlist") | .configuration.value')
 
     # Add the IPs to the all_ips array
     all_ips+=($ips)
@@ -83,7 +83,7 @@ get_whitelisted_ips() {
     ((page++))
   done
 
-  # Return all whitelisted IPs
+  # Return all allowlisted IPs
   echo "${all_ips[@]}"
 }
 
@@ -122,12 +122,12 @@ print_box() {
 if [[ "$1" == "delete" ]]; then
   echo "Deleting QUIC.cloud IPs, please wait..."
   
-  # Fetch all whitelisted IPs with pagination
-  EXISTING_WHITELISTED_IPS=$(get_whitelisted_ips)
+  # Fetch all allowlisted IPs with pagination
+  EXISTING_ALLOWLISTED_IPS=$(get_allowlisted_ips)
 
-  # Filter out the IPs from QUIC.cloud that are actually whitelisted
+  # Filter out the IPs from QUIC.cloud that are actually allowlisted
   IPsToDelete=()
-  for IP in $EXISTING_WHITELISTED_IPS; do
+  for IP in $EXISTING_ALLOWLISTED_IPS; do
     if echo "$QUIC_CLOUD_IPS" | grep -q "$IP"; then
       IPsToDelete+=($IP)
     fi
@@ -165,38 +165,38 @@ if [[ "$1" == "delete" ]]; then
   # Print final message for deletion
   if [ "$totalIPsDeleted" -gt 0 ]; then
     box_message_delete=$(cat <<EOF
-Successfully deleted $totalIPsDeleted relevant IP addresses from the whitelist at CF WAF.
+Successfully deleted $totalIPsDeleted relevant IP addresses from the allowlist at CF WAF.
 EOF
     )
   else
     box_message_delete=$(cat <<EOF
-No relevant IP addresses found to delete from the whitelist at CF WAF.
+No relevant IP addresses found to delete from the allowlist at CF WAF.
 EOF
     )
   fi
 
   print_box "$box_message_delete"
 else
-  # If not deleting, proceed with whitelisting
-  EXISTING_WHITELISTED_IPS=$(get_whitelisted_ips)
+  # If not deleting, proceed with allowlisting
+  EXISTING_ALLOWLISTED_IPS=$(get_allowlisted_ips)
 
-  # Filter out the IPs from QUIC.cloud that are not yet whitelisted
+  # Filter out the IPs from QUIC.cloud that are not yet allowlisted
   IPsToWhitelist=()
-  totalIPsSkipped=0  # Initialize counter for already whitelisted IPs
+  totalIPsSkipped=0  # Initialize counter for already allowlisted IPs
   totalIPsFailed=0   # Initialize counter for failed IPs
 
   # Loop through the QUIC.cloud IPs
   for IP in $(echo "$QUIC_CLOUD_IPS" | jq -r '.[]'); do
-    if echo "$EXISTING_WHITELISTED_IPS" | grep -q "$IP"; then
-      # IP is already whitelisted, so we skip it
+    if echo "$EXISTING_ALLOWLISTED_IPS" | grep -q "$IP"; then
+      # IP is already allowlisted, so we skip it
       ((totalIPsSkipped++))
     else
-      # IP is not whitelisted, so we add it to the list for whitelisting
+      # IP is not allowlisted, so we add it to the list for allowlisting
       IPsToWhitelist+=($IP)
     fi
   done
 
-  # Adjust total IPs to be whitelisted based on what needs whitelisting
+  # Adjust total IPs to be allowlisted based on what needs allowlisting
   totalIPs=${#IPsToWhitelist[@]}
   progress=0
   totalIPsAdded=0  # Counter for successfully added IPs
@@ -208,7 +208,7 @@ else
       -H "X-Auth-Key: $CF_API_KEY" \
       -H "Content-Type: application/json" \
       --data '{
-        "mode":"whitelist",
+        "mode":"allowlist",
         "configuration": {
           "target": "ip",
           "value": "'"$IP"'"
@@ -231,13 +231,13 @@ else
   # New line after the progress bar
   echo ""
 
-  # Output the final result for whitelisting
-  box_message_whitelist=$(cat <<EOF
-Successfully added $totalIPsAdded new IP addresses to the whitelist at CF WAF.
-$totalIPsSkipped IP addresses were already whitelisted.
+  # Output the final result for allowlisting
+  box_message_allowlist=$(cat <<EOF
+Successfully added $totalIPsAdded new IP addresses to the allowlist at CF WAF.
+$totalIPsSkipped IP addresses were already allowlisted.
 $totalIPsFailed IP addresses could not be added due to errors.
 EOF
 )
 
-  print_box "$box_message_whitelist"
+  print_box "$box_message_allowlist"
 fi
