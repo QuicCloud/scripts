@@ -24,11 +24,13 @@ This script is designed to automate the process of allowlisting and managing IP 
 2. Make the script executable:
    ```bash
    chmod +x /opt/cloudflare-auto-update.sh
-3. Set up your Cloudflare credentials in the script: Edit the script and provide your Cloudflare email, API key, and zone ID:
-   ```bash
-   CF_EMAIL="your_email@example.com"
-   CF_API_KEY="your_api_key"
-   CF_ZONE_ID="your_zone_id"
+3. Set up your Cloudflare credentials: Run the script with the configure option or direct to set up credentials:
+   - Direct
+     ```bash
+     /opt/cloudflare-auto-update.sh
+   - Run the script with the configure option
+     ```bash
+     /opt/cloudflare-auto-update.sh --configure
 To find those credentials:
 * CF_EMAIL: simply your email for your account. Can be found on the top left corner of the Cloudflare website;
 * CF_API_KEY: Go to your profile (top right corner icon) -> My Profile -> API Tokens -> Global API Key => View ;
