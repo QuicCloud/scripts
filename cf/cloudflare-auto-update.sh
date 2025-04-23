@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Check if jq is installed
@@ -108,27 +109,21 @@ if [ "$HTTP_STATUS" -ne 200 ]; then
 fi
 
 # Get QUIC.cloud IPs
-QUIC_CLOUD_IPS=$(curl -s "$QUIC_CLOUD_IPS_URL")
+QUIC_CLOUD_IPS=$(curl -s "$QUIC_CLOUD_IPS_URL" | jq -r '.[]')
 
-# Function to get all allowlisted IPs (with pagination support)
-get_allowlisted_ips() {
+# Function to get all allowlisted rules added by this script
+get_script_managed_rules() {
   local page=1
-  local all_ips=()
-  
+  local ids=()
+
   while true; do
-    # Fetch the allowlisted IPs from Cloudflare, with pagination support
-    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?page=$page&per_page=50&mode=whitelist" \
+    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?page=$page&per_page=50" \
       -H "X-Auth-Email: $CF_EMAIL" \
       -H "X-Auth-Key: $CF_API_KEY" \
       -H "Content-Type: application/json")
 
-    # Parse the IPs from the response
-    ips=$(echo "$response" | jq -r '.result[] | .configuration.value')
+    ids+=($(echo "$response" | jq -r '.result[] | select(.notes | test("QUIC.cloud IP, IP allowed on ")) | .id'))
 
-    # Add the IPs to the all_ips array
-    all_ips+=($ips)
-
-    # Check if we have more pages to fetch
     total_pages=$(echo "$response" | jq -r '.result_info.total_pages')
     if [ "$page" -ge "$total_pages" ]; then
       break
@@ -136,8 +131,30 @@ get_allowlisted_ips() {
     ((page++))
   done
 
-  # Return all allowlisted IPs
-  echo "${all_ips[@]}"
+  echo "${ids[@]}"
+}
+
+# Function to get rule IPs added by this script
+get_script_managed_ips() {
+  local page=1
+  local ips=()
+
+  while true; do
+    response=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?page=$page&per_page=50" \
+      -H "X-Auth-Email: $CF_EMAIL" \
+      -H "X-Auth-Key: $CF_API_KEY" \
+      -H "Content-Type: application/json")
+
+    ips+=($(echo "$response" | jq -r '.result[] | select(.notes | test("QUIC.cloud IP, IP allowed on ")) | .configuration.value'))
+
+    total_pages=$(echo "$response" | jq -r '.result_info.total_pages')
+    if [ "$page" -ge "$total_pages" ]; then
+      break
+    fi
+    ((page++))
+  done
+
+  echo "${ips[@]}"
 }
 
 # Function to display progress bar
@@ -156,101 +173,97 @@ show_progress() {
 # Function to print message in a box
 print_box() {
   local message="$1"
-  # Find the maximum length of the message lines
   max_length=$(echo "$message" | awk '{ if (length > L) L = length } END { print L }')
-
-  # Print top border
   echo -e "\n+$(printf "%0.s-" $(seq 1 $((max_length + 2))))+"
-
-  # Print each line with side borders
   while IFS= read -r line; do
     printf "| %-*s |\n" "$max_length" "$line"
   done <<< "$message"
-
-  # Print bottom border
   echo -e "+$(printf "%0.s-" $(seq 1 $((max_length + 2))))+\n"
 }
 
 # Current date for notes
 CURRENT_DATE=$(date +%Y-%m-%d)
 
-# Check if the deletion action is specified
+# Handle delete all mode
 if [[ "$1" == "delete" ]]; then
-  echo "Deleting QUIC.cloud IPs, please wait..."
-
-  # Fetch all allowlisted IPs with pagination
-  EXISTING_ALLOWLISTED_IPS=$(get_allowlisted_ips)
-
-  # Filter out the IPs from QUIC.cloud that are actually allowlisted
-  IPsToDelete=()
-  for IP in $EXISTING_ALLOWLISTED_IPS; do
-    if echo "$QUIC_CLOUD_IPS" | grep -q "$IP"; then
-      IPsToDelete+=("$IP")
-    fi
-  done
-  
-  # Adjust total IPs to be deleted based on what actually needs deletion
-  totalIPs=${#IPsToDelete[@]}
+  echo "Deleting all QUIC.cloud IPs added by this script..."
+  SCRIPT_MANAGED_RULE_IDS=($(get_script_managed_rules))
+  totalIPs=${#SCRIPT_MANAGED_RULE_IDS[@]}
   progress=0
-  totalIPsDeleted=0
+  totalDeleted=0
 
-  for IP in "${IPsToDelete[@]}"; do
-    # Get the rule ID for the IP
-    RULE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?configuration.value=$IP" \
-      -H "X-Auth-Email: $CF_EMAIL" \
-      -H "X-Auth-Key: $CF_API_KEY" \
-      -H "Content-Type: application/json" | jq -r '.result[0].id')
-
-    if [ -n "$RULE_ID" ] && [ "$RULE_ID" != "null" ]; then
-      # Delete the rule
-      DELETE_RESPONSE=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules/$RULE_ID" \
+  if [ "$totalIPs" -eq 0 ]; then
+    echo "No QUIC.cloud IPs found to delete."
+  else
+    for i in "${!SCRIPT_MANAGED_RULE_IDS[@]}"; do
+      ID="${SCRIPT_MANAGED_RULE_IDS[$i]}"
+      RESPONSE=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules/$ID" \
         -H "X-Auth-Email: $CF_EMAIL" \
         -H "X-Auth-Key: $CF_API_KEY" \
         -H "Content-Type: application/json")
-
-       # Check if the delete request was successful
-      if echo "$DELETE_RESPONSE" | jq -e '.success == true' > /dev/null; then
-        ((totalIPsDeleted++))
+      if echo "$RESPONSE" | jq -e '.success == true' > /dev/null; then
+        ((totalDeleted++))
       fi
+      ((progress++))
+      show_progress
+    done
+    print_box "Successfully deleted $totalDeleted QUIC.cloud IPs from the CF WAF."
+  fi
+  exit 0
+fi
+
+# Remove outdated IPs
+echo "Removing outdated IPs..."
+CURRENT_MANAGED_IPS=($(get_script_managed_ips))
+IPsToRemove=()
+
+for ip in "${CURRENT_MANAGED_IPS[@]}"; do
+  if ! echo "$QUIC_CLOUD_IPS" | grep -qw "$ip"; then
+    ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules?configuration.value=$ip" \
+      -H "X-Auth-Email: $CF_EMAIL" \
+      -H "X-Auth-Key: $CF_API_KEY" \
+      -H "Content-Type: application/json" | jq -r '.result[0].id')
+    [ -n "$ID" ] && [ "$ID" != "null" ] && IPsToRemove+=("$ID")
+  fi
+done
+
+progress=0
+totalIPs=${#IPsToRemove[@]}
+removed=0
+
+if [ "$totalIPs" -eq 0 ]; then
+  echo "No outdated IPs to remove."
+else
+  for id in "${IPsToRemove[@]}"; do
+    RESPONSE=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules/$id" \
+      -H "X-Auth-Email: $CF_EMAIL" \
+      -H "X-Auth-Key: $CF_API_KEY" \
+      -H "Content-Type: application/json")
+    if echo "$RESPONSE" | jq -e '.success == true' > /dev/null; then
+      ((removed++))
     fi
-    
-    # Increment progress and show the progress bar
     ((progress++))
     show_progress
   done
-  
-  # Print final message for deletion
-  box_message_delete=$(cat <<EOF
-Successfully deleted $totalIPsDeleted relevant IP addresses from the allowlist at CF WAF.
-EOF
-    )
-  print_box "$box_message_delete"
+fi
+
+# Add new IPs
+echo -e "\nAdding new IPs..."
+IPsToAdd=()
+for ip in $QUIC_CLOUD_IPS; do
+  if ! echo "${CURRENT_MANAGED_IPS[@]}" | grep -qw "$ip"; then
+    IPsToAdd+=("$ip")
+  fi
+done
+
+progress=0
+totalIPs=${#IPsToAdd[@]}
+added=0
+
+if [ "$totalIPs" -eq 0 ]; then
+  echo "No new IPs to add."
 else
-  # If not deleting, proceed with allowlisting
-  EXISTING_ALLOWLISTED_IPS=$(get_allowlisted_ips)
-
-  # Filter out the IPs from QUIC.cloud that are not yet allowlisted
-  IPsToWhitelist=() 
-  totalIPsSkipped=0 # Initialize counter for already allowlisted IPs
-  totalIPsFailed=0 # Initialize counter for failed IPs
-
-  # Loop through the QUIC.cloud IPs
-  for IP in $(echo "$QUIC_CLOUD_IPS" | jq -r '.[]'); do
-    if echo "$EXISTING_ALLOWLISTED_IPS" | grep -q "$IP"; then
-      ((totalIPsSkipped++))
-    else
-      # IP is not allowlisted, so we add it to the list for allowlisting
-      IPsToWhitelist+=("$IP")
-    fi
-  done
-
-  # Adjust total IPs to be allowlisted based on what needs allowlisting
-  totalIPs=${#IPsToWhitelist[@]}
-  progress=0
-  totalIPsAdded=0 # Counter for successfully added IPs
-
-  echo "Whitelisting QUIC.cloud IPs, please wait..."
-  for IP in "${IPsToWhitelist[@]}"; do
+  for ip in "${IPsToAdd[@]}"; do
     RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/firewall/access_rules/rules" \
       -H "X-Auth-Email: $CF_EMAIL" \
       -H "X-Auth-Key: $CF_API_KEY" \
@@ -259,32 +272,17 @@ else
         "mode": "whitelist",
         "configuration": {
           "target": "ip",
-          "value": "'"$IP"'"
+          "value": "'"$ip"'"
         },
         "notes": "QUIC.cloud IP, IP allowed on '"$CURRENT_DATE"'"
       }')
-
-    # Check if the request was successful
     if echo "$RESPONSE" | jq -e '.success == true' > /dev/null; then
-      ((totalIPsAdded++))
-    else
-      ((totalIPsFailed++)) # Increment failed IPs counter if something goes wrong
+      ((added++))
     fi
-    
-    # Increment progress and show progress bar
     ((progress++))
     show_progress
   done
-
-  # New line after the progress bar
-  echo ""
-  
-  # Output the final result for allowlisting
-  box_message_allowlist=$(cat <<EOF
-Successfully added $totalIPsAdded new IP addresses to the allowlist at CF WAF.
-$totalIPsSkipped IP addresses were already allowlisted.
-$totalIPsFailed IP addresses could not be added due to errors.
-EOF
-)
-  print_box "$box_message_allowlist"
 fi
+
+# Summary output
+print_box "Successfully added $added IPs and removed $removed outdated IPs from CF WAF."
